@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# Secrets - NEVER commit these
+.groq_api_key
+*.env
+config.json
+.ai_scanner_config.json
+
+# Runtime artifacts (generated at scan time, not part of the source)
+reports/
+*.log
+
+# OS/editor junk
+.DS_Store
+.vscode/
+.idea/
