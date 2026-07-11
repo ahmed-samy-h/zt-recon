@@ -27,6 +27,5 @@ chmod +x install.sh
 ./install.sh
 
 echo -e "${GREEN}[========== UPDATE COMPLETED SUCCESSFULLY ==========]${NC}"
-echo -e "${YELLOW}[*] If this is your first update to v2.0.0, ZT-RECON switched AI providers${NC}"
-echo -e "${YELLOW}[*] from Groq to Anthropic, so you will be asked for a NEW Anthropic API key${NC}"
+echo -e "${YELLOW}[*] If this is your first update to v2.1.0, ZT-RECON switched AI providers${NC}"
 echo -e "${YELLOW}[*] (sk-ant-...) the next time you run: sudo zt-recon -t <Target>${NC}"

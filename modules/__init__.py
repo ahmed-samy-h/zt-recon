@@ -6,7 +6,7 @@ Groups all the core building blocks of the tool:
     - subdomain_enum   -> Passive subdomain discovery + liveness filtering
     - web_analyzer      -> HTTP headers/methods/source snippet analysis
     - exploit_suite     -> SQLMap / Dirsearch / Nuclei (OWASP Top 10 active scan)
-    - ai_engine         -> Anthropic Claude integration for AI-driven vulnerability analysis
+    - ai_engine         -> Google ai Studio integration for AI-driven vulnerability analysis
     - html_report       -> Converts the AI report into a styled HTML file
     - pdf_report        -> Renders the HTML report to a matching PDF file (WeasyPrint)
     - session_manager   -> Per-target scan state persistence (resumable scans)

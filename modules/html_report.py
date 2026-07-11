@@ -2,11 +2,6 @@ import os
 import markdown
 from datetime import datetime
 
-# Theme rebuilt to match the "ZERO TRACE // RED TEAM" brand mark: near-black
-# background, cold silver for structural/neutral text, and a strong red
-# accent (instead of the old neon-green "hacker" look) for anything that
-# represents danger/risk/critical content, exactly like the logo's
-# black+silver+red split.
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>

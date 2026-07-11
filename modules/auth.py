@@ -11,8 +11,8 @@ FALLBACK_CONFIG_PATH = os.path.join(FALLBACK_CONFIG_DIR, ".google_api_key")
 # Anthropic key files from older installs are left in place untouched
 # (never deleted here) so a downgrade or manual inspection is never lossy,
 # but they are no longer read by this module.
-LEGACY_ANTHROPIC_SYSTEM_PATH = os.path.join(SYSTEM_CONFIG_DIR, ".anthropic_api_key")
-LEGACY_ANTHROPIC_FALLBACK_PATH = os.path.join(FALLBACK_CONFIG_DIR, ".anthropic_api_key")
+LEGACY_ANTHROPIC_SYSTEM_PATH = os.path.join(SYSTEM_CONFIG_DIR, ".google_api_key")
+LEGACY_ANTHROPIC_FALLBACK_PATH = os.path.join(FALLBACK_CONFIG_DIR, ".google_api_key")
 
 
 def _resolve_config_path():
@@ -38,11 +38,11 @@ def initialize_auth():
         print("[!] Google AI Studio API Key not found in configuration.")
         token = input(
             "[+] Please enter your Google AI Studio API Key "
-            "(get one free at aistudio.google.com, usually starts with 'AIza'): "
+            "(get Token at aistudio.google.com, usually starts with 'AQ'): "
         ).strip()
 
-        if not token.startswith("AIza"):
-            print("[!] Warning: Google AI Studio API keys normally start with 'AIza'. Saving anyway.")
+        if not token.startswith("AQ"):
+            print("[!] Warning: Google AI Studio API keys normally start with 'AQ'. Saving anyway.")
 
         config_data = {"GOOGLE_API_KEY": token}
         with open(config_path, "w") as f:

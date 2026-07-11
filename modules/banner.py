@@ -8,13 +8,6 @@ TOOL_NAME = "ZT-RECON"
 TAGLINE = "AI-Powered Automated Recon & Exploitation Orchestrator"
 SUBTAGLINE = "Zero Trace • Red Team • Leave Nothing But Success"
 
-# "Big Money-ne" IS a real, standard FIGlet font (ships inside pyfiglet
-# itself, unlike "Adrena" from the earlier attempt which only exists on
-# patorjk.com's TAAG tool and can't be reproduced via pyfiglet at all) ->
-# no hardcoded ASCII string needed here, it renders correctly at runtime.
-# Kept as the first candidate, with the previous fonts still listed after
-# it as safe fallbacks for any minimal/offline pyfiglet install that might
-# be missing the "big_money" font family for some reason.
 FONT_CANDIDATES = ["big_money-ne", "ansi_shadow", "slant", "big", "standard"]
 
 

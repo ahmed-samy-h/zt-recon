@@ -2,35 +2,9 @@ from google import genai
 from google.genai import types
 
 # --------------------------------------------------------------------------
-# Provider migration: Anthropic Claude has been replaced with Google AI
-# Studio (the Gemini Developer API), mainly to take advantage of its
-# free tier (no credit card required) and its much larger context window,
-# which comfortably fits the large combined Nmap + subdomain + web +
-# SQLMap/Dirsearch/Nuclei prompt this tool sends for a single target.
-#
-#   - gemini-flash-latest -> DEFAULT. Free-tier eligible, huge context
-#                            window, good speed/quality tradeoff for
-#                            vuln/compliance mapping.
-#   - gemini-pro-latest   -> deeper reasoning, no free tier, use via
-#                            --model for the toughest/most ambiguous
-#                            targets.
-#   - gemini-flash-lite-latest -> fastest/cheapest/highest free-tier rate
-#                            limit, good for quick triage passes or very
-#                            large bulk scans.
-#
-# NOTE: Google's free-tier request/token limits change over time and are
-# tracked per Google Cloud *project*, not per API key -> check the live
-# quota for your own project at aistudio.google.com before relying on a
-# specific number.
-# --------------------------------------------------------------------------
-DEFAULT_MODEL = "gemini-flash-latest"
+DEFAULT_MODEL = "gemini-3.5-flash"
 
-# Moved the "who/how to behave" instructions into a dedicated system
-# instruction (instead of stuffing everything into the user message). This
-# is standard best-practice prompt engineering for Gemini: the system
-# instruction sets persistent role/behavior, the user message carries only
-# the actual data + task -> more consistent, better-grounded output turn
-# after turn.
+
 SYSTEM_PROMPT = """You are an expert cybersecurity auditor operating under the
 Zero Trace methodology. You analyze automated recon/exploitation-suite output
 (Nmap, subdomain enumeration, HTTP analysis, SQLMap, Dirsearch, Nuclei) for a
