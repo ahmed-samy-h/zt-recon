@@ -32,34 +32,19 @@ def initialize_auth():
         print("[!] Google AI Studio API Key not found in configuration.")
         token = input(
             "[+] Please enter your Google AI Studio API Key "
-            "(get Token at aistudio.google.com, usually starts with 'AIzaSy'): "
+            "(get Token at aistudio.google.com): "
         ).strip()
 
-        # The STANDARD/correct Gemini Developer API key format starts with
-        # "AIzaSy" (this is what the generativelanguage.googleapis.com REST
-        # endpoint -- which the google-genai SDK talks to -- expects).
-        #
-        # A small number of Google accounts have recently (2026) started
-        # generating keys with an "AQ." prefix instead, due to a known,
-        # currently-unresolved issue on Google's side (see the Google AI
-        # Developers Forum, e.g. discuss.ai.google.dev threads titled
-        # "Gemini API key start from AQ"). Those "AQ." keys do NOT work
-        # against the standard REST endpoint this tool uses and will fail
-        # authentication -> warn specifically about that case instead of
-        # treating "AQ" as the expected/normal prefix.
-        if token.startswith("AQ"):
+        # Google issues Gemini Developer API keys in two valid formats: the
+        # older "AIzaSy..." format and the newer "AQ." format Google has
+        # been rolling out as a replacement. Both work fine against the
+        # native google-genai SDK used by this tool -- no format-specific
+        # warning needed here. We only sanity-check that *something* was
+        # actually entered.
+        if not token:
             print(
-                "[!] Warning: this key starts with 'AQ.' -- that's a known-broken "
-                "key format some Google accounts have recently been issued instead "
-                "of the standard 'AIzaSy...' format, and it will likely fail "
-                "authentication against this tool's API endpoint. If AI analysis "
-                "calls fail with an auth error, regenerate the key at "
-                "aistudio.google.com and confirm it starts with 'AIzaSy'."
-            )
-        elif not token.startswith("AIzaSy"):
-            print(
-                "[!] Warning: Google AI Studio API keys normally start with "
-                "'AIzaSy'. Saving anyway, but double-check you copied the full key."
+                "[!] Warning: empty key entered. Saving anyway, but the tool "
+                "will fail to authenticate until you replace it with a real key."
             )
 
         config_data = {"GOOGLE_API_KEY": token}

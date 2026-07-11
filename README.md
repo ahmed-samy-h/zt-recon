@@ -21,19 +21,36 @@ report.
   fast/cheap triage with the highest free-tier rate limit.
 - 🎨 **New terminal banner font** (`Big Money-ne`), still rendered in the
   same red "Zero Trace" style.
-- 🧯 **Clearer AI-failure reporting**: if the AI call fails (quota
-  exhausted, bad key, rate limit, etc.), the HTML/PDF report now shows an
-  explicit "⚠️ AI Analysis Unavailable" section with the raw error instead
-  of silently embedding the error text as if it were a real finding. The
-  raw scan data is still saved either way, and re-running the same target
-  resumes from cache and only retries the AI step.
+- 🔁 **Automatic retry on transient AI failures**: before giving up, the AI
+  engine now detects failures that *look* transient (DNS hiccup, connection
+  reset/aborted, timeout) and retries automatically up to 3 times with
+  exponential backoff (2s, 4s, 8s). Failures that look permanent (bad/expired
+  key, invalid model name, quota exhausted) are **not** retried — they fail
+  immediately instead of wasting time reproducing the same error.
+- 🧯 **Clearer AI-failure reporting**: if the AI call still fails after
+  retries (quota exhausted, bad key, rate limit, etc.), the HTML/PDF report
+  now shows an explicit "⚠️ AI Analysis Unavailable" section with the raw
+  error instead of silently embedding the error text as if it were a real
+  finding. The raw scan data is still saved either way, and re-running the
+  same target resumes from cache and only retries the AI step.
+- 📄 **`--report-format` replaces `--no-pdf`**: instead of always generating
+  the HTML report and optionally skipping the PDF, you now explicitly choose
+  which file(s) to keep with `--report-format {html,pdf,both}` (default
+  `both`). Picking `pdf` treats the HTML file as a throwaway intermediate
+  (WeasyPrint renders the PDF from it, then the HTML file is deleted).
+  Picking `html` or `pdf` (i.e. anything other than the default `both`)
+  also turns off live-streaming the AI report text to the terminal — it's
+  written straight to the report file(s) only. With the default `both`,
+  live streaming still happens exactly as before (single-target /
+  `--threads 1` runs).
 
 ## What's new in v2.0.0
 
 - 🎨 **New "Zero Trace // Red Team" HTML theme** (black / red / silver),
   matching the project's brand mark.
 - 📄 **PDF export** of every report, automatically generated next to the
-  HTML file (disable with `--no-pdf`).
+  HTML file (disable with `--no-pdf`). *(Superseded in v2.1.0 — see
+  `--report-format` above; `--no-pdf` no longer exists.)*
 - 🧵 **Parallel bulk scanning**: `--threads N` scans multiple targets from a
   `-f targets.txt` file at the same time (defaults to `1` = sequential,
   same behavior as before).
@@ -83,10 +100,19 @@ always safe and idempotent.
 > ⚠️ **One-time exception on your first update to v2.1.0:** the AI provider
 > changed from Anthropic to Google AI Studio, and the key file itself was
 > renamed (`.google_api_key`). This means the tool
-> will ask you for a **new Google AI Studio API key** (`AQ...`, free at
-> aistudio.google.com) the first time you run it after updating — this is
+> will ask you for a **new Google AI Studio API key**, free at
+> aistudio.google.com, the first time you run it after updating — this is
 > expected, not a bug. Your old Anthropic key file is simply left untouched
 > on disk and unused.
+>
+> ℹ️ **Note on key formats (`AIzaSy...` vs `AQ....`):** Google has been
+> rolling out a new `AQ.`-prefixed key format alongside the older
+> `AIzaSy...` format. Both work fine with this tool, since it talks to
+> Gemini natively through the `google-genai` SDK — the reports of `AQ.`
+> keys failing are specific to OpenAI-compatible wrapper layers or
+> third-party tools that hardcode a regex expecting the old `AIzaSy`
+> prefix, which ZT-RECON does not do. `auth.py` no longer warns about
+> `AQ.` keys (an earlier version incorrectly flagged them as broken).
 
 A convenience `update.sh` script (does the same two steps above) is also
 included in the repo — just run:
@@ -111,7 +137,7 @@ sudo zt-recon -f targets.txt --threads 5
 sudo zt-recon -t example.com --delay 2.5
 
 # Skip subdomain enum, the active OWASP suite, and/or PDF export
-sudo zt-recon -t example.com --no-subdomains --no-owasp --no-pdf
+sudo zt-recon -t example.com --no-subdomains --no-owasp --report-format html
 
 # Use a different Gemini model
 sudo zt-recon -t example.com --model gemini-pro-latest
@@ -133,15 +159,20 @@ sudo zt-recon -t example.com --report-dir /home/user/client_x_reports
 - **`--delay`** (default `2.0`) — Seconds to wait between scan phases (Nmap
   phases, subdomain probing, OWASP tools) — rate limiting to look less like
   a bot.
-- **`--model`** (default `gemini-flash-latest`) — Google AI Studio (Gemini)
+- **`--model`** (default `gemini-3.5-flash`) — Google AI Studio (Gemini)
   model for the AI analysis. Also accepts `gemini-pro-latest` (deeper
   reasoning, paid tier only) or `gemini-flash-lite-latest`
   (fastest/cheapest, highest free-tier request rate — good for bulk triage).
 - **`--no-subdomains`** — Skip the subdomain enumeration phase entirely.
 - **`--no-owasp`** — Skip the active OWASP scan suite (SQLMap / Dirsearch /
   Nuclei) — recon only, no active exploitation attempts.
-- **`--no-pdf`** — Skip PDF export; the HTML report is still always
-  generated.
+- **`--report-format`** (default `both`) — Which report file(s) to keep in
+  `--report-dir`: `html` (HTML only), `pdf` (PDF only, the intermediate
+  HTML file is deleted after the PDF is rendered from it), or `both`
+  (default, keeps both files). Picking `html` or `pdf` explicitly also
+  turns off live-streaming the AI report text to the terminal (it's written
+  straight to the report file(s) instead); the default `both` still streams
+  live exactly as before, as long as `--threads` is `1`.
 - **`--report-dir`** (default `./reports`) — Directory where HTML/PDF
   reports are saved.
 - **`--ports`** (default `1-1024`) — Port range/list to scan, in nmap `-p`
@@ -165,7 +196,7 @@ First run will prompt for a Google AI Studio API key (get one free at
 aistudio.google.com — no credit card required), stored at
 `/opt/zt-recon/.google_api_key`.
 
-> ℹ️ **About the free tier:** `gemini-flash-latest` is free-tier eligible
+> ℹ️ **About the free tier:** `gemini-3.5-flash` (the default model) is free-tier eligible
 > with a generous context window (large enough for most combined
 > Nmap/subdomain/web/OWASP prompts), but Google's exact free-tier
 > request/token limits change over time and are tracked per Google Cloud
