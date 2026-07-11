@@ -15,7 +15,7 @@ report.
 ## What's new in v2.1.0
 
 - 🤖 **AI engine switched to Google AI Studio (Gemini)** (was Anthropic
-  Claude). Default model: `gemini-flash-latest` — free tier eligible, no
+  Claude). Default model: `gemini-3.5-flash` — free tier eligible, no
   credit card required. Use `--model gemini-pro-latest` for deeper
   reasoning (paid tier only), or `--model gemini-flash-lite-latest` for
   fast/cheap triage with the highest free-tier rate limit.
@@ -82,8 +82,8 @@ always safe and idempotent.
 
 > ⚠️ **One-time exception on your first update to v2.1.0:** the AI provider
 > changed from Anthropic to Google AI Studio, and the key file itself was
-> renamed (`.anthropic_api_key` → `.google_api_key`). This means the tool
-> will ask you for a **new Google AI Studio API key** (`AIza...`, free at
+> renamed (`.google_api_key`). This means the tool
+> will ask you for a **new Google AI Studio API key** (`AQ...`, free at
 > aistudio.google.com) the first time you run it after updating — this is
 > expected, not a bug. Your old Anthropic key file is simply left untouched
 > on disk and unused.
