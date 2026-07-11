@@ -54,12 +54,14 @@ def process_target(current_target, api_token, args):
     port_range = resolve_port_range(args)
 
     # Live-streaming the AI's tokens straight to the console only makes sense
-    # when a single target is being processed at a time. With --threads > 1,
-    # several targets would try to print to the same console simultaneously
-    # and the output would interleave into noise -> stream live only in the
-    # sequential path, and just print a completion notice per target
-    # otherwise (the full text still goes into the HTML/PDF report either way).
-    stream_live = args.threads <= 1
+    # when a single target is being processed at a time (threads <= 1) AND
+    # the user asked for BOTH report formats (the default). If the user
+    # explicitly picked a single output format via --report-format (html
+    # only, or pdf only), we treat that as "just give me the file, don't
+    # spam my terminal with the raw report text" -> suppress live streaming
+    # in that case regardless of thread count. The full text still always
+    # goes into whichever report file(s) get generated below.
+    stream_live = args.threads <= 1 and args.report_format == "both"
 
     with console_lock:
         console.print(f"\n[bold yellow][+] Processing Target: {current_target}[/bold yellow]")
@@ -192,14 +194,31 @@ def process_target(current_target, api_token, args):
             "resumed from cache automatically)."
         )
 
+    # generate_pdf_report() (WeasyPrint) renders FROM an HTML file on disk,
+    # so an HTML file always has to be produced first regardless of which
+    # format(s) the user actually asked to keep. If the user only asked for
+    # "pdf", the HTML file is treated as a throwaway intermediate and
+    # deleted right after the PDF is rendered from it.
     html_path = generate_html_report(current_target, report_text, output_dir=args.report_dir, model_name=args.model)
 
-    if not args.no_pdf:
+    if args.report_format in ("html", "both"):
+        with console_lock:
+            console.print(f"[green][+] HTML report kept -> {html_path}[/green]")
+
+    if args.report_format in ("pdf", "both"):
         try:
             generate_pdf_report(html_path, output_dir=args.report_dir)
         except Exception as e:
             with console_lock:
                 console.print(f"[red][!] PDF export failed for {current_target}: {e}[/red]")
+
+    if args.report_format == "pdf":
+        # User only wanted the PDF -> remove the intermediate HTML file so
+        # it doesn't linger in --report-dir as an unwanted extra artifact.
+        try:
+            os.remove(html_path)
+        except OSError:
+            pass
 
     with console_lock:
         console.print(f"[bold green][+] Finished target: {current_target}[/bold green]")
@@ -222,7 +241,14 @@ def main():
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Google AI Studio (Gemini) model id to use for AI analysis")
     parser.add_argument("--no-subdomains", action="store_true", help="Skip subdomain enumeration")
     parser.add_argument("--no-owasp", action="store_true", help="Skip the active OWASP scan suite (SQLMap/Dirsearch/Nuclei)")
-    parser.add_argument("--no-pdf", action="store_true", help="Skip PDF export (HTML report is always generated)")
+    parser.add_argument("--report-format", choices=["html", "pdf", "both"], default="both",
+                         help="Which report file(s) to keep in --report-dir: 'html' (HTML only), "
+                              "'pdf' (PDF only), or 'both' (default, generates both files). "
+                              "When you explicitly pick 'html' or 'pdf' (i.e. NOT the default "
+                              "'both'), the AI report text is no longer live-streamed to the "
+                              "terminal while it generates -- it is written straight to the "
+                              "report file(s) only. With the default 'both', live streaming "
+                              "still happens exactly as before (single-target / --threads 1 runs).")
     parser.add_argument("--report-dir", default="./reports", help="Directory to save HTML/PDF reports")
     parser.add_argument("--ports", default="1-1024",
                          help="Port range/list to scan, in nmap -p syntax. Default: '1-1024' "
