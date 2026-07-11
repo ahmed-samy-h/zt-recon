@@ -164,6 +164,34 @@ def process_target(current_target, api_token, args):
         stream_to_console=stream_live,
     )
 
+    # analyze_vulnerabilities() returns a "[-] Error interacting with AI
+    # Engine (Google AI Studio): ..." string (instead of raising) whenever
+    # the API call fails (bad/expired key, quota exhausted, rate limit,
+    # etc.), so that a failed AI call never crashes the whole target and the
+    # raw scan data collected up to that point isn't lost. But that also
+    # means the raw error text used to get silently dropped straight into
+    # the HTML/PDF report body as if it were an actual finding -> flag it
+    # clearly instead, so nobody mistakes "quota exhausted" for "no
+    # vulnerabilities found".
+    ai_call_failed = report_text.startswith("[-] Error interacting with AI Engine")
+    if ai_call_failed:
+        with console_lock:
+            console.print(
+                f"[red][!] AI analysis failed for {current_target} — the report below "
+                f"will only contain raw scan data, not an AI-generated writeup.[/red]"
+            )
+        report_text = (
+            "## ⚠️ AI Analysis Unavailable\n\n"
+            f"The AI engine call failed for this target, so no AI-generated "
+            f"vulnerability writeup could be produced:\n\n"
+            f"```\n{report_text}\n```\n\n"
+            "Raw recon/scan data was still collected successfully and is "
+            "cached in the session/report directories — re-run zt-recon "
+            "against this target once the issue above is resolved to get "
+            "the full AI writeup (the scan phases will be skipped and "
+            "resumed from cache automatically)."
+        )
+
     html_path = generate_html_report(current_target, report_text, output_dir=args.report_dir, model_name=args.model)
 
     if not args.no_pdf:
@@ -184,14 +212,14 @@ def main():
 
     api_token = initialize_auth()
     if not api_token:
-        console.print("[red][!] Valid Anthropic API Key is required to run this tool.[/red]")
+        console.print("[red][!] Valid Google AI Studio API Key is required to run this tool.[/red]")
         sys.exit(1)
 
     parser = argparse.ArgumentParser(description="ZT-RECON: AI-Powered Automated Recon & Exploitation Orchestrator")
     parser.add_argument("-t", "--target", help="Single Target IP or Domain")
     parser.add_argument("-f", "--file", help="File containing list of targets (Bulk Scan)")
     parser.add_argument("--delay", type=float, default=2.0, help="Throttling delay between scan phases (Rate Limiting)")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Anthropic model id to use for AI analysis")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="Google AI Studio (Gemini) model id to use for AI analysis")
     parser.add_argument("--no-subdomains", action="store_true", help="Skip subdomain enumeration")
     parser.add_argument("--no-owasp", action="store_true", help="Skip the active OWASP scan suite (SQLMap/Dirsearch/Nuclei)")
     parser.add_argument("--no-pdf", action="store_true", help="Skip PDF export (HTML report is always generated)")

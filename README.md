@@ -4,18 +4,32 @@ AI-Powered Automated Recon & Exploitation Orchestrator.
 
 Combines Nmap (with firewall/WAF evasion), passive subdomain enumeration +
 liveness filtering, an OWASP Top 10 active scan suite (SQLMap / Dirsearch /
-Nuclei), and AI-driven vulnerability analysis (via **Anthropic Claude**) into
-a single command — with a live-streamed terminal report (animated "working"
-spinner during long scans), a styled **"Zero Trace // Red Team"** HTML
-report, and an auto-generated **PDF** twin of that same report.
+Nuclei), and AI-driven vulnerability analysis (via **Google AI Studio /
+Gemini**) into a single command — with a live-streamed terminal report
+(animated "working" spinner during long scans), a styled **"Zero Trace //
+Red Team"** HTML report, and an auto-generated **PDF** twin of that same
+report.
 
 > ⚠️ For use only against targets you own or are explicitly authorized to test.
 
+## What's new in v2.1.0
+
+- 🤖 **AI engine switched to Google AI Studio (Gemini)** (was Anthropic
+  Claude). Default model: `gemini-flash-latest` — free tier eligible, no
+  credit card required. Use `--model gemini-pro-latest` for deeper
+  reasoning (paid tier only), or `--model gemini-flash-lite-latest` for
+  fast/cheap triage with the highest free-tier rate limit.
+- 🎨 **New terminal banner font** (`Big Money-ne`), still rendered in the
+  same red "Zero Trace" style.
+- 🧯 **Clearer AI-failure reporting**: if the AI call fails (quota
+  exhausted, bad key, rate limit, etc.), the HTML/PDF report now shows an
+  explicit "⚠️ AI Analysis Unavailable" section with the raw error instead
+  of silently embedding the error text as if it were a real finding. The
+  raw scan data is still saved either way, and re-running the same target
+  resumes from cache and only retries the AI step.
+
 ## What's new in v2.0.0
 
-- 🤖 **AI engine switched to Anthropic Claude** (was Groq). Default model:
-  `claude-sonnet-5`. Use `--model claude-opus-4-8` for deeper reasoning, or
-  `--model claude-haiku-4-5-20251001` for fast/cheap triage on large bulk scans.
 - 🎨 **New "Zero Trace // Red Team" HTML theme** (black / red / silver),
   matching the project's brand mark.
 - 📄 **PDF export** of every report, automatically generated next to the
@@ -66,12 +80,13 @@ sudo ./install.sh
 new/changed Python dependencies from `requirements.txt`, so re-running it is
 always safe and idempotent.
 
-> ⚠️ **One-time exception on your first update to v2.0.0:** the AI provider
-> changed from Groq to Anthropic, and the key file itself was renamed
-> (`.groq_api_key` → `.anthropic_api_key`). This means the tool will ask you
-> for a **new Anthropic API key** (`sk-ant-...`, from console.anthropic.com)
-> the first time you run it after updating — this is expected, not a bug.
-> Your old Groq key file is simply left untouched on disk and unused.
+> ⚠️ **One-time exception on your first update to v2.1.0:** the AI provider
+> changed from Anthropic to Google AI Studio, and the key file itself was
+> renamed (`.anthropic_api_key` → `.google_api_key`). This means the tool
+> will ask you for a **new Google AI Studio API key** (`AIza...`, free at
+> aistudio.google.com) the first time you run it after updating — this is
+> expected, not a bug. Your old Anthropic key file is simply left untouched
+> on disk and unused.
 
 A convenience `update.sh` script (does the same two steps above) is also
 included in the repo — just run:
@@ -98,8 +113,8 @@ sudo zt-recon -t example.com --delay 2.5
 # Skip subdomain enum, the active OWASP suite, and/or PDF export
 sudo zt-recon -t example.com --no-subdomains --no-owasp --no-pdf
 
-# Use a different Claude model
-sudo zt-recon -t example.com --model claude-opus-4-8
+# Use a different Gemini model
+sudo zt-recon -t example.com --model gemini-pro-latest
 
 # Full 1-65535 TCP port sweep instead of the default fast 1-1024 range
 sudo zt-recon -t example.com --full-scan
@@ -118,9 +133,10 @@ sudo zt-recon -t example.com --report-dir /home/user/client_x_reports
 - **`--delay`** (default `2.0`) — Seconds to wait between scan phases (Nmap
   phases, subdomain probing, OWASP tools) — rate limiting to look less like
   a bot.
-- **`--model`** (default `claude-sonnet-5`) — Anthropic model for the AI
-  analysis. Also accepts `claude-opus-4-8` (deeper reasoning) or
-  `claude-haiku-4-5-20251001` (fastest/cheapest, good for bulk triage).
+- **`--model`** (default `gemini-flash-latest`) — Google AI Studio (Gemini)
+  model for the AI analysis. Also accepts `gemini-pro-latest` (deeper
+  reasoning, paid tier only) or `gemini-flash-lite-latest`
+  (fastest/cheapest, highest free-tier request rate — good for bulk triage).
 - **`--no-subdomains`** — Skip the subdomain enumeration phase entirely.
 - **`--no-owasp`** — Skip the active OWASP scan suite (SQLMap / Dirsearch /
   Nuclei) — recon only, no active exploitation attempts.
@@ -145,7 +161,16 @@ sudo zt-recon -t example.com --report-dir /home/user/client_x_reports
 > the mismatch and automatically re-scans ports instead of reusing stale
 > cached results.
 
-First run will prompt for an Anthropic API key (get one at
-console.anthropic.com), stored at `/opt/zt-recon/.anthropic_api_key`.
+First run will prompt for a Google AI Studio API key (get one free at
+aistudio.google.com — no credit card required), stored at
+`/opt/zt-recon/.google_api_key`.
+
+> ℹ️ **About the free tier:** `gemini-flash-latest` is free-tier eligible
+> with a generous context window (large enough for most combined
+> Nmap/subdomain/web/OWASP prompts), but Google's exact free-tier
+> request/token limits change over time and are tracked per Google Cloud
+> *project*, not per API key. If you hit a `429`/quota error on a very
+> large bulk scan, check your live limits at aistudio.google.com, or use
+> `--threads 1` and a bit more `--delay` to slow down request pacing.
 
 See `ZT-RECON_WRITEUP.md` for full architecture details.

@@ -1,6 +1,6 @@
 # 📝 TECHNICAL WRITEUP & ARCHITECTURE REPORT: ZT-RECON
 
-### **Project Status: Active Development, Educational & Practical Application — v2.0.0**
+### **Project Status: Active Development, Educational & Practical Application — v2.1.0**
 
 ---
 
@@ -36,6 +36,7 @@
   - **Session Awareness:** رينج البورتات المستخدم بيتحفظ جوه الـ session state نفسه (`port_range`). لو رجعت شغّلت نفس الهدف تاني برينج مختلف عن اللي كان محفوظ (مثلاً كنت فاحص بـ `1-1024` وبعدين رجعت بـ `--full-scan`)، الأداة بتكتشف الاختلاف ده تلقائيًا وتلغي (invalidate) بيانات البورتات القديمة المحفوظة وتعيد الفحص من جديد بالرينج الجديد، بدل ما تفضل "عالقة" على نتيجة رينج قديم وهي بتـ resume الجلسة.
 - **Service & OS Fingerprinting:** استخراج إصدارات الخدمات وأنظمة التشغيل (`-sV -O`).
 - **Live Working Indicator *(جديد v2.0.0)*:** كل مرحلة من المراحل دي (host discovery / port scan / OS fingerprinting) دلوقتي بتظهر جواها animated spinner أحمر في التيرمينال (عبر `phase_status` في `banner.py`) طول ما هي شغّالة، عشان يبان واضح إن الأداة "حية" ومش متجمدة حتى لو الفحص واخد وقت طويل من غير أي output.
+- **ASCII Banner Font *(اتغيّر في v2.1.0)*:** خط الـ ASCII banner اللي بيطبع اسم الأداة أول ما تشتغل اتغيّر لـ `Big Money-ne` (خط FIGlet رسمي موجود جوه مكتبة `pyfiglet` نفسها، فمفيش أي اعتماد على ملفات خطوط خارجية). لسه بنفس الأسلوب البصري الأحمر بتاع "Zero Trace".
 
 ### 2️⃣ Subdomain Discovery & Liveness Filtering
 
@@ -56,11 +57,17 @@
   - كل أداة بتشتغل جوا `try/except` مستقلة — لو أداة فشلت أو مش متثبتة، الباقي يكمل عادي، ومفيش توقف كامل للفحص.
   - كل مخرجات الأدوات بتتحفظ Raw على الديسك (`owasp/sqlmap/`, `owasp/dirsearch/`, `owasp/nuclei/`) + ملخص JSON موحد (`combined_summary.json`) قبل ما يتبعتوا للـ AI.
 
-### 4️⃣ AI Orchestration Engine *(Provider اتغيّر في v2.0.0)*
+### 4️⃣ AI Orchestration Engine *(Provider اتغيّر مرتين: v2.0.0 ثم v2.1.0)*
 
-البيانات المجمّعة من Nmap + Subdomain Enum + Web Analyzer + SQLMap/Dirsearch/Nuclei بتتنضف وتتمرر لموديل **Anthropic Claude** بالـ Streaming (بدل Groq قبل كده).
+البيانات المجمّعة من Nmap + Subdomain Enum + Web Analyzer + SQLMap/Dirsearch/Nuclei بتتنضف وتتمرر لموديل **Google AI Studio (Gemini)** بالـ Streaming.
 
-> **تحديث v2.0.0:** الأداة اتنقلت بالكامل من Groq لـ Anthropic. الموديل الافتراضي دلوقتي هو **`claude-sonnet-5`** (توازن قوي بين الجودة والسرعة، مناسب لمهام تحليل الثغرات وربطها بالـ compliance frameworks). تقدر تستخدم `--model claude-opus-4-8` لو محتاج عمق تحليل أكبر على حساب سرعة أقل، أو `--model claude-haiku-4-5-20251001` للفحوصات السريعة/الـ bulk scans الكبيرة. كمان تم فصل الـ instructions في system prompt منفصل بدل حشرها في رسالة الـ user، وتقليل الـ temperature لـ `0.2` عشان يقلل من احتمالية إن الموديل "يهلوس" ثغرات أو تفاصيل مش موجودة فعليًا في بيانات الفحص.
+> **تحديث v2.0.0 (تاريخي):** الأداة اتنقلت وقتها من Groq لـ Anthropic Claude.
+>
+> **تحديث v2.1.0 (الحالي):** الأداة اتنقلت تاني، هذه المرة من Anthropic Claude لـ **Google AI Studio (Gemini API)** عبر مكتبة `google-genai` الرسمية. السبب الأساسي: Google AI Studio بيوفر **free tier فعلي من غير كارت ائتمان**، وكمان **context window أكبر بكتير** بيستحمل براحة البرومبت الكبير اللي الأداة بتبعته (نتائج nmap + subdomains + web + SQLMap/Dirsearch/Nuclei مع بعض في رسالة واحدة)، خصوصًا مع `--full-scan` أو أهداف فيها subdomains كتير. الموديل الافتراضي دلوقتي هو **`gemini-flash-latest`** (متاح على الـ free tier، توازن قوي بين الجودة والسرعة). تقدر تستخدم `--model gemini-pro-latest` لو محتاج عمق تحليل أكبر (الموديل ده مش متاح على الـ free tier، محتاج billing مفعّل)، أو `--model gemini-flash-lite-latest` للفحوصات السريعة/الـ bulk scans الكبيرة (أعلى rate limit على الـ free tier). زي ما كان الحال مع Anthropic، الـ instructions لسه متفصلة في system instruction منفصل بدل حشرها في رسالة الـ user، والـ temperature لسه `0.2` عشان يقلل من احتمالية إن الموديل "يهلوس" ثغرات أو تفاصيل مش موجودة فعليًا في بيانات الفحص.
+>
+> ⚠️ **ملحوظة مهمة عن الـ free tier:** حدود الطلبات/التوكنز المجانية بتاعة جوجل بتتغيّر مع الوقت ومربوطة بالـ Google Cloud *project* مش بالـ API key نفسه. لو واجهت خطأ `429`/quota exhausted في فحص bulk كبير، راجع الحدود الحية بتاعتك على aistudio.google.com، أو قلل `--threads` وزوّد `--delay` شوية.
+>
+> **تحديث مصاحب في `main.py`:** لو استدعاء الـ AI فشل (مفتاح غلط، quota خلصت، rate limit، إلخ)، التقرير بقى بيوضّح ده صراحة بقسم `⚠️ AI Analysis Unavailable` بدل ما نص الخطأ الخام يترمي جوه التقرير كإنه finding عادي — بيانات الفحص الخام لسه بتتحفظ في كل الأحوال، وإعادة تشغيل نفس الهدف بترجع من الـ cache وتعيد بس خطوة الـ AI.
 
 التقرير بيتطلع بثلاث صيغ دلوقتي:
 - **Streaming حي في التيرمينال** (Markdown منسق برموز 🚨🌐🕳️🛠️📋🔒) — بيتعطّل تلقائيًا وقت الـ parallel bulk scanning (`--threads > 1`) عشان مايحصلش تداخل بين مخرجات أكتر من هدف في نفس الوقت.
@@ -87,13 +94,13 @@
 
 - توزيعة دبيان (Ubuntu / Kali Linux).
 - صلاحيات Root/Sudo.
-- مفتاح API مجاني/مدفوع من منصة **Anthropic Console**.
+- مفتاح API **مجاني بالكامل** من منصة **Google AI Studio**.
 
-## 🔑 الخطوة 1: الحصول على Anthropic API Key
+## 🔑 الخطوة 1: الحصول على Google AI Studio API Key
 
-1. ادخل على console.anthropic.com وسجّل حساب.
-2. من القائمة الجانبية: **API Keys → Create Key**.
-3. انسخ المفتاح (يبدأ بـ `sk-ant-`) واحتفظ بيه.
+1. ادخل على aistudio.google.com وسجّل دخول بحساب Google عادي (من غير كارت ائتمان).
+2. من الصفحة الرئيسية: **Get API Key → Create API Key**.
+3. انسخ المفتاح (بيبدأ عادةً بـ `AIza`) واحتفظ بيه.
 
 ## 🛠️ الخطوة 2: تحميل المشروع
 
@@ -111,13 +118,13 @@ sudo ./install.sh
 
 السكربت هيعمل:
 - ينشئ `/opt/zt-recon` ويثبت فيه المشروع.
-- يثبت `nmap`, `sqlmap`, `dirsearch`، مكتبات بايثون (`rich`, `anthropic`, `markdown`, `dnspython`, `pyfiglet`, `weasyprint`)، بالإضافة لمكتبات النظام اللي محتاجها `weasyprint` لتصدير الـ PDF (`libpango`, `libcairo`, إلخ).
+- يثبت `nmap`, `sqlmap`, `dirsearch`، مكتبات بايثون (`rich`, `google-genai`, `markdown`, `dnspython`, `pyfiglet`, `weasyprint`)، بالإضافة لمكتبات النظام اللي محتاجها `weasyprint` لتصدير الـ PDF (`libpango`, `libcairo`, إلخ).
 - يحمّل ويفعّل **Nuclei v3.3.8** + أكتر من 4000 قالب OWASP.
 - يربط الأداة بـ Symbolic Link عالمي: `zt-recon`.
 
 ## 🔐 الخطوة 4: إعداد مفتاح الذكاء الاصطناعي
 
-أول تشغيل، الأداة هتطلب مفتاح Anthropic وتحفظه بشكل ثابت في `/opt/zt-recon/.anthropic_api_key` (بصلاحيات 600) — مش هتتسأل تاني حتى مع تغيير اليوزر أو استخدام sudo.
+أول تشغيل، الأداة هتطلب مفتاح Google AI Studio وتحفظه بشكل ثابت في `/opt/zt-recon/.google_api_key` (بصلاحيات 600) — مش هتتسأل تاني حتى مع تغيير اليوزر أو استخدام sudo.
 
 ## 🎯 الخطوة 5: كل الـ Flags المتاحة في الأداة (Full CLI Reference)
 
@@ -136,10 +143,10 @@ sudo ./install.sh
   مثال: `sudo zt-recon -t example.com --delay 2.5`
 
 - **`--model`**
-  بتحدد أي موديل من موديلات Anthropic Claude يتستخدم في مرحلة التحليل الذكي (AI Analysis). القيمة الافتراضية هي `claude-sonnet-5` (توازن قوي بين الجودة والسرعة). البدائل المتاحة:
-  - `claude-opus-4-8` — تحليل أعمق وأدق، بس أبطأ وأغلى، مناسب للأهداف الحساسة أو المعقدة اللي محتاجة استنتاج دقيق جدًا.
-  - `claude-haiku-4-5-20251001` — أسرع وأرخص موديل، مناسب لفحوصات سريعة أو الـ bulk scans اللي فيها عدد كبير من الأهداف ومحتاج نتيجة سريعة بدون تعمق زيادة.
-  مثال: `sudo zt-recon -t example.com --model claude-opus-4-8`
+  بتحدد أي موديل من موديلات Google AI Studio (Gemini) يتستخدم في مرحلة التحليل الذكي (AI Analysis). القيمة الافتراضية هي `gemini-flash-latest` (متاح على الـ free tier، توازن قوي بين الجودة والسرعة). البدائل المتاحة:
+  - `gemini-pro-latest` — تحليل أعمق وأدق، بس أبطأ ومش متاح على الـ free tier (محتاج billing مفعّل)، مناسب للأهداف الحساسة أو المعقدة اللي محتاجة استنتاج دقيق جدًا.
+  - `gemini-flash-lite-latest` — أسرع موديل وأعلى rate limit على الـ free tier، مناسب لفحوصات سريعة أو الـ bulk scans اللي فيها عدد كبير من الأهداف ومحتاج نتيجة سريعة بدون تعمق زيادة.
+  مثال: `sudo zt-recon -t example.com --model gemini-pro-latest`
 
 - **`--no-subdomains`**
   بيلغي مرحلة اكتشاف الـ Subdomains بالكامل (يعني `subdomain_enum.py` مش هيتشغل خالص). مفيد لو الهدف IP مش domain أصلاً (وقتها المرحلة دي هتتخطى تلقائيًا برضو)، أو لو محتاج تسرّع الفحص وموضوع الـ subdomains مش مهم في السياق ده.
@@ -186,8 +193,8 @@ sudo zt-recon -f /path/to/targets.txt
 sudo zt-recon -f /path/to/targets.txt --threads 5
 
 # استخدام موديل تحليل مختلف (أعمق أو أسرع)
-sudo zt-recon -t example.com --model claude-opus-4-8
-sudo zt-recon -t example.com --model claude-haiku-4-5-20251001
+sudo zt-recon -t example.com --model gemini-pro-latest
+sudo zt-recon -t example.com --model gemini-flash-lite-latest
 
 # تخطي فحص الـ Subdomains أو ترسانة OWASP أو تصدير الـ PDF
 sudo zt-recon -t example.com --no-subdomains --no-owasp --no-pdf
@@ -202,7 +209,7 @@ sudo zt-recon -t example.com --ports "1-1024,3306,5432,6379,8080,8443,9200,27017
 sudo zt-recon -t example.com --report-dir /home/user/reports/client_x
 
 # دمج أكتر من خيار مع بعض
-sudo zt-recon -f targets.txt --threads 3 --full-scan --model claude-opus-4-8 --report-dir ./client_reports
+sudo zt-recon -f targets.txt --threads 3 --full-scan --model gemini-pro-latest --report-dir ./client_reports
 ```
 
 ## 📊 الخطوة 6: استلام التقرير النهائي
@@ -230,6 +237,8 @@ sudo ./install.sh     # يعيد نسخ الملفات لـ /opt/zt-recon ويح
 sudo ./update.sh
 ```
 
-> ⚠️ **ملحوظة مهمة لأول تحديث لـ v2.0.0 تحديدًا:** الأداة اتنقلت من Groq لـ Anthropic، واسم ملف حفظ المفتاح نفسه اتغيّر (`.groq_api_key` → `.anthropic_api_key`). يعني أول تشغيل بعد التحديث، الأداة **هتطلب منك مفتاح Anthropic جديد** (`sk-ant-...`) حتى لو كان عندك مفتاح Groq قديم متخزن قبل كده — ده سلوك متوقع ومش خطأ، ومفتاح Groq القديم بيفضل موجود على الجهاز من غير استخدام، تقدر تمسحه يدويًا لو حابب.
+> ⚠️ **ملحوظة مهمة لأول تحديث لـ v2.1.0 تحديدًا:** الأداة اتنقلت من Anthropic Claude لـ Google AI Studio (Gemini)، واسم ملف حفظ المفتاح نفسه اتغيّر (`.anthropic_api_key` → `.google_api_key`). يعني أول تشغيل بعد التحديث، الأداة **هتطلب منك مفتاح Google AI Studio جديد** (`AIza...`، مجاني بالكامل من aistudio.google.com) حتى لو كان عندك مفتاح Anthropic قديم متخزن قبل كده — ده سلوك متوقع ومش خطأ، ومفتاح Anthropic القديم بيفضل موجود على الجهاز من غير استخدام، تقدر تمسحه يدويًا لو حابب.
+
+> ⚠️ **ملحوظة تاريخية (أول تحديث لـ v2.0.0):** الأداة كانت اتنقلت وقتها من Groq لـ Anthropic، واسم ملف حفظ المفتاح اتغيّر (`.groq_api_key` → `.anthropic_api_key`). الملاحظة دي محفوظة هنا لتوثيق تاريخ تطور المشروع بس، مفيش أي تأثير عملي منها دلوقتي بعد الانتقال لـ v2.1.0.
 
 ---

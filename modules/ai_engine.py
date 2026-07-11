@@ -1,25 +1,36 @@
-import anthropic
+from google import genai
+from google.genai import types
 
 # --------------------------------------------------------------------------
-# Provider migration: Groq (llama-3.3-70b-versatile / gpt-oss-120b) has been
-# fully removed from this project. The AI analysis engine now talks directly
-# to Anthropic's Claude models.
+# Provider migration: Anthropic Claude has been replaced with Google AI
+# Studio (the Gemini Developer API), mainly to take advantage of its
+# free tier (no credit card required) and its much larger context window,
+# which comfortably fits the large combined Nmap + subdomain + web +
+# SQLMap/Dirsearch/Nuclei prompt this tool sends for a single target.
 #
-#   - claude-sonnet-5           -> DEFAULT. Strong reasoning + good speed,
-#                                  well suited for vuln/compliance mapping.
-#   - claude-opus-4-8           -> deeper reasoning, slower, use via --model
-#                                  for the toughest/most ambiguous targets.
-#   - claude-haiku-4-5-20251001 -> fastest/cheapest, good for quick triage
-#                                  passes or very large bulk scans.
+#   - gemini-flash-latest -> DEFAULT. Free-tier eligible, huge context
+#                            window, good speed/quality tradeoff for
+#                            vuln/compliance mapping.
+#   - gemini-pro-latest   -> deeper reasoning, no free tier, use via
+#                            --model for the toughest/most ambiguous
+#                            targets.
+#   - gemini-flash-lite-latest -> fastest/cheapest/highest free-tier rate
+#                            limit, good for quick triage passes or very
+#                            large bulk scans.
+#
+# NOTE: Google's free-tier request/token limits change over time and are
+# tracked per Google Cloud *project*, not per API key -> check the live
+# quota for your own project at aistudio.google.com before relying on a
+# specific number.
 # --------------------------------------------------------------------------
-DEFAULT_MODEL = "claude-sonnet-5"
+DEFAULT_MODEL = "gemini-flash-latest"
 
-# Moved the "who/how to behave" instructions into a dedicated system prompt
-# (instead of stuffing everything into the user message like the old Groq
-# version did). This is standard best-practice prompt engineering for
-# Claude: the system prompt sets persistent role/behavior, the user message
-# carries only the actual data + task -> more consistent, better-grounded
-# output turn after turn.
+# Moved the "who/how to behave" instructions into a dedicated system
+# instruction (instead of stuffing everything into the user message). This
+# is standard best-practice prompt engineering for Gemini: the system
+# instruction sets persistent role/behavior, the user message carries only
+# the actual data + task -> more consistent, better-grounded output turn
+# after turn.
 SYSTEM_PROMPT = """You are an expert cybersecurity auditor operating under the
 Zero Trace methodology. You analyze automated recon/exploitation-suite output
 (Nmap, subdomain enumeration, HTTP analysis, SQLMap, Dirsearch, Nuclei) for a
@@ -38,7 +49,7 @@ Hard rules you must always follow:
 
 class AIEngine:
     def __init__(self, api_token, model=DEFAULT_MODEL):
-        self.client = anthropic.Anthropic(api_key=api_token)
+        self.client = genai.Client(api_key=api_token)
         self.model = model
 
     def _build_prompt(self, scan_data, web_data=None, subdomain_data=None, owasp_data=None):
@@ -72,24 +83,28 @@ above. Ground every single claim strictly in the data provided above.
 
     def analyze_vulnerabilities(self, scan_data, web_data=None, subdomain_data=None,
                                  owasp_data=None, stream_to_console=True):
-        """Sends consolidated recon data to Claude for vulnerability analysis.
+        """Sends consolidated recon data to Gemini for vulnerability analysis.
         Streams the response live to the console (as advertised) and also
         returns the full text so it can be turned into an HTML/PDF report."""
         prompt = self._build_prompt(scan_data, web_data, subdomain_data, owasp_data)
         full_text = ""
 
         try:
-            with self.client.messages.stream(
+            stream = self.client.models.generate_content_stream(
                 model=self.model,
-                max_tokens=8192,
-                temperature=0.2,  # low temperature -> more grounded, less "creative" output
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
-            ) as stream:
-                for text_chunk in stream.text_stream:
-                    full_text += text_chunk
-                    if stream_to_console:
-                        print(text_chunk, end="", flush=True)
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.2,  # low temperature -> more grounded, less "creative" output
+                    max_output_tokens=8192,
+                ),
+            )
+
+            for chunk in stream:
+                text_chunk = chunk.text or ""
+                full_text += text_chunk
+                if stream_to_console:
+                    print(text_chunk, end="", flush=True)
 
             if stream_to_console:
                 print()  # newline after streaming ends
@@ -97,6 +112,6 @@ above. Ground every single claim strictly in the data provided above.
             return full_text
 
         except Exception as e:
-            error_msg = f"[-] Error interacting with AI Engine (Anthropic): {str(e)}"
+            error_msg = f"[-] Error interacting with AI Engine (Google AI Studio): {str(e)}"
             print(error_msg)
             return error_msg

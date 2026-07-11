@@ -3,10 +3,16 @@ import json
 import stat
 
 SYSTEM_CONFIG_DIR = "/opt/zt-recon"
-SYSTEM_CONFIG_PATH = os.path.join(SYSTEM_CONFIG_DIR, ".anthropic_api_key")
+SYSTEM_CONFIG_PATH = os.path.join(SYSTEM_CONFIG_DIR, ".google_api_key")
 
 FALLBACK_CONFIG_DIR = os.path.expanduser("~/.config/zt-recon")
-FALLBACK_CONFIG_PATH = os.path.join(FALLBACK_CONFIG_DIR, ".anthropic_api_key")
+FALLBACK_CONFIG_PATH = os.path.join(FALLBACK_CONFIG_DIR, ".google_api_key")
+
+# Anthropic key files from older installs are left in place untouched
+# (never deleted here) so a downgrade or manual inspection is never lossy,
+# but they are no longer read by this module.
+LEGACY_ANTHROPIC_SYSTEM_PATH = os.path.join(SYSTEM_CONFIG_DIR, ".anthropic_api_key")
+LEGACY_ANTHROPIC_FALLBACK_PATH = os.path.join(FALLBACK_CONFIG_DIR, ".anthropic_api_key")
 
 
 def _resolve_config_path():
@@ -23,18 +29,22 @@ def _resolve_config_path():
 
 
 def initialize_auth():
-    """Ensures a valid Anthropic API key is configured, stored system-wide so
-    it survives across users/sudo sessions and is only ever asked for once."""
+    """Ensures a valid Google AI Studio (Gemini) API key is configured,
+    stored system-wide so it survives across users/sudo sessions and is
+    only ever asked for once."""
     config_path = _resolve_config_path()
 
     if not os.path.exists(config_path):
-        print("[!] Anthropic API Key not found in configuration.")
-        token = input("[+] Please enter your Anthropic API Key (sk-ant-...): ").strip()
+        print("[!] Google AI Studio API Key not found in configuration.")
+        token = input(
+            "[+] Please enter your Google AI Studio API Key "
+            "(get one free at aistudio.google.com, usually starts with 'AIza'): "
+        ).strip()
 
-        if not token.startswith("sk-ant-"):
-            print("[!] Warning: Anthropic API keys normally start with 'sk-ant-'. Saving anyway.")
+        if not token.startswith("AIza"):
+            print("[!] Warning: Google AI Studio API keys normally start with 'AIza'. Saving anyway.")
 
-        config_data = {"ANTHROPIC_API_KEY": token}
+        config_data = {"GOOGLE_API_KEY": token}
         with open(config_path, "w") as f:
             json.dump(config_data, f)
 
@@ -44,7 +54,7 @@ def initialize_auth():
         with open(config_path, "r") as f:
             config_data = json.load(f)
 
-    return config_data.get("ANTHROPIC_API_KEY")
+    return config_data.get("GOOGLE_API_KEY")
 
 
 def reset_auth():
