@@ -1,11 +1,12 @@
 import pyfiglet
+from contextlib import contextmanager
 from rich.console import Console
 
 console = Console()
 
 TOOL_NAME = "ZT-RECON"
 TAGLINE = "AI-Powered Automated Recon & Exploitation Orchestrator"
-SUBTAGLINE = "Zero Trace • Zero Noise • Full Coverage"
+SUBTAGLINE = "Zero Trace • Red Team • Leave Nothing But Success"
 
 # Preferred font first, then safe fallbacks that ship with almost every
 # pyfiglet install (including minimal Debian/apt packages).
@@ -24,6 +25,26 @@ def _render_ascii(text):
 
 def display_banner():
     ascii_art = _render_ascii(TOOL_NAME)
-    console.print(f"[bold green]{ascii_art}[/bold green]")
-    console.print(f"[bold blue]        {TAGLINE}[/bold blue]")
+    console.print(f"[bold red]{ascii_art}[/bold red]")
+    console.print(f"[bold white]        {TAGLINE}[/bold white]")
     console.print(f"[dim]                  {SUBTAGLINE}[/dim]\n")
+
+
+@contextmanager
+def phase_status(message: str, spinner_style: str = "dots"):
+    """Shows a LIVE animated spinner + message while a scan phase is running,
+    so the operator has continuous visual confirmation that the tool is
+    actively working (instead of the terminal looking frozen during long
+    nmap / sqlmap / dirsearch / nuclei calls, which can silently take
+    minutes with zero stdout in between).
+
+    Usage:
+        with phase_status("[*] Scanning ports on 10.10.10.5..."):
+            open_ports = scanner.scan_ports(ip)
+
+    The spinner automatically disappears and the console returns to normal
+    print/console.print behaviour the moment the `with` block exits (success
+    OR exception), so it is always safe to wrap any blocking call with it.
+    """
+    with console.status(f"[bold red]{message}[/bold red]", spinner=spinner_style) as status:
+        yield status

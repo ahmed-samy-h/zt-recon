@@ -2,21 +2,28 @@ import os
 import markdown
 from datetime import datetime
 
+# Theme rebuilt to match the "ZERO TRACE // RED TEAM" brand mark: near-black
+# background, cold silver for structural/neutral text, and a strong red
+# accent (instead of the old neon-green "hacker" look) for anything that
+# represents danger/risk/critical content, exactly like the logo's
+# black+silver+red split.
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ZT-RECON Report — {target}</title>
+<title>ZERO TRACE // RED TEAM — {target}</title>
 <style>
     :root {{
-        --bg: #0a0e0a;
-        --panel: #10160f;
-        --neon: #39ff14;
-        --neon-dim: #1fae0d;
-        --text: #c8ffcf;
-        --danger: #ff3860;
+        --bg: #050506;
+        --panel: #0c0d10;
+        --red: #e0293f;
+        --red-dim: #7a1420;
+        --silver: #c9ced3;
+        --silver-dim: #6d7580;
+        --text: #d7dadc;
+        --danger: #ff3b52;
         --warn: #ffd93b;
-        --border: #1c2a1a;
+        --border: #23262b;
     }}
 
     * {{ box-sizing: border-box; }}
@@ -27,29 +34,48 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         font-family: 'Courier New', Consolas, monospace;
         margin: 0;
         padding: 0;
-        line-height: 1.6;
+        line-height: 1.65;
         background-image:
-            linear-gradient(rgba(57,255,20,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(57,255,20,0.03) 1px, transparent 1px);
-        background-size: 24px 24px;
+            radial-gradient(circle at 15% 0%, rgba(224,41,63,0.06), transparent 40%),
+            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+        background-size: auto, 24px 24px, 24px 24px;
     }}
 
     .header {{
-        border-bottom: 1px solid var(--neon-dim);
-        padding: 28px 40px;
-        background: linear-gradient(180deg, #0d130c 0%, #0a0e0a 100%);
+        border-bottom: 1px solid var(--red-dim);
+        padding: 34px 40px 26px 40px;
+        background: linear-gradient(180deg, #0a0a0c 0%, #050506 100%);
+    }}
+
+    .brandmark {{
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: 4px;
+        margin: 0 0 4px 0;
+        text-transform: uppercase;
+    }}
+    .brandmark .zero {{ color: var(--silver); text-shadow: 0 0 10px rgba(201,206,211,0.35); }}
+    .brandmark .trace {{ color: var(--red); text-shadow: 0 0 12px rgba(224,41,63,0.55); }}
+
+    .subbrand {{
+        color: var(--silver-dim);
+        font-size: 12px;
+        letter-spacing: 6px;
+        text-transform: uppercase;
+        margin-bottom: 18px;
     }}
 
     .header h1 {{
-        color: var(--neon);
-        text-shadow: 0 0 8px rgba(57,255,20,0.6);
-        margin: 0 0 6px 0;
-        font-size: 28px;
-        letter-spacing: 2px;
+        color: var(--text);
+        margin: 10px 0 6px 0;
+        font-size: 18px;
+        letter-spacing: 1px;
+        font-weight: 400;
     }}
 
     .header .meta {{
-        color: #7fa87a;
+        color: var(--silver-dim);
         font-size: 13px;
     }}
 
@@ -62,25 +88,25 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .panel {{
         background: var(--panel);
         border: 1px solid var(--border);
-        border-left: 3px solid var(--neon);
+        border-left: 3px solid var(--red);
         border-radius: 4px;
         padding: 24px 28px;
-        margin-bottom: 0;
     }}
 
     h2 {{
-        color: var(--neon);
+        color: var(--red);
         border-bottom: 1px dashed var(--border);
         padding-bottom: 8px;
         margin-top: 36px;
         font-size: 19px;
+        letter-spacing: 0.5px;
     }}
 
-    h3 {{ color: #8fffb0; font-size: 16px; }}
+    h3 {{ color: var(--silver); font-size: 16px; }}
 
     code, pre {{
-        background: #060a06;
-        color: #9dffb0;
+        background: #08090a;
+        color: #e8ebed;
         border: 1px solid var(--border);
         border-radius: 4px;
         padding: 2px 6px;
@@ -89,7 +115,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     pre {{ padding: 14px; overflow-x: auto; }}
 
-    a {{ color: var(--neon); }}
+    a {{ color: var(--red); }}
 
     table {{
         width: 100%;
@@ -104,7 +130,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         font-size: 13.5px;
     }}
 
-    th {{ background: #0d140c; color: var(--neon); }}
+    th {{ background: #100b0c; color: var(--red); }}
 
     blockquote {{
         border-left: 3px solid var(--warn);
@@ -116,18 +142,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     .footer {{
         text-align: center;
-        color: #4b6b48;
+        color: var(--silver-dim);
         font-size: 12px;
         margin-top: 50px;
         border-top: 1px solid var(--border);
         padding-top: 18px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
     }}
+    .footer .no-limits {{ color: var(--red); }}
 
-    ::selection {{ background: var(--neon); color: #000; }}
+    ::selection {{ background: var(--red); color: #000; }}
 </style>
 </head>
 <body>
     <div class="header">
+        <div class="brandmark"><span class="zero">ZERO</span> <span class="trace">TRACE</span></div>
+        <div class="subbrand">RED TEAM</div>
         <h1>&gt;&gt; ZT-RECON // SECURITY ASSESSMENT REPORT</h1>
         <div class="meta">
             TARGET: {target} &nbsp;|&nbsp; GENERATED: {timestamp} &nbsp;|&nbsp; ENGINE: {model}
@@ -138,6 +169,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             {body}
         </div>
         <div class="footer">
+            NO TRACE. NO EVIDENCE. <span class="no-limits">NO LIMITS.</span><br>
             Generated by ZT-RECON — AI-Powered Automated Recon &amp; Exploitation Orchestrator.<br>
             For authorized security testing use only.
         </div>
@@ -149,7 +181,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
 def generate_html_report(target, ai_markdown_text, output_dir="./reports", model_name="unknown"):
     """Converts the AI-generated Markdown report into a styled, self-contained
-    'Zero Trace' themed HTML file and saves it to disk."""
+    'Zero Trace // Red Team' themed HTML file and saves it to disk."""
     os.makedirs(output_dir, exist_ok=True)
 
     body_html = markdown.markdown(

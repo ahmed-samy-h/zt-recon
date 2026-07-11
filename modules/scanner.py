@@ -24,10 +24,25 @@ class NetworkScanner:
         time.sleep(self.rate_limit_delay)
         return [host for host in self.nm.all_hosts() if self.nm[host].state() == "up"]
 
-    def scan_ports(self, ip):
-        """Scans for open ports on a specific live IP, with evasion flags."""
-        print(f"[*] Scanning open ports for IP: {ip}")
-        args = f"-p 1-1024{self._evasion_flags()}"
+    def scan_ports(self, ip, port_range="1-1024"):
+        """Scans for open ports on a specific live IP, with evasion flags.
+
+        port_range controls how much of the port space nmap covers, e.g.:
+            "1-1024"    -> default, fast, well-known ports only (original
+                           behavior, kept as the default for backward
+                           compatibility and quick recon passes).
+            "1-65535"   -> full TCP port sweep. Much slower, but will catch
+                           services commonly deployed above 1024 (MySQL
+                           3306, PostgreSQL 5432, Redis 6379, alt-HTTP
+                           8080/8443, Elasticsearch 9200, MongoDB 27017,
+                           RDP 3389, etc.) that a 1-1024 scan silently
+                           misses entirely.
+            "1-1024,3306,8080,8443" -> custom mix: the fast well-known range
+                           plus specific extra ports you care about, without
+                           paying the cost of a full 65535 sweep.
+        """
+        print(f"[*] Scanning open ports for IP: {ip} (range: {port_range})")
+        args = f"-p {port_range}{self._evasion_flags()}"
         self.nm.scan(hosts=ip, arguments=args)
         time.sleep(self.rate_limit_delay)
 
